@@ -3,6 +3,8 @@
 function go() {
   IMAGE_NAME=$DOCKER_REGISTRY/$GITHUB_REPOSITORY/$APP_NAME:v$VERSION_NUMBER
 
+  echo "$IMAGE_NAME"
+
   docker-compose --project-name app build --build-arg build_number_ci=v$VERSION_NUMBER $DCP_SERVICE_NAME
 
   if [ -n "$WAIT_DATABASES" ]
