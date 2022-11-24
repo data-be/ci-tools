@@ -1,11 +1,9 @@
 #!/bin/bash
 
-function go() {
+function run() {
+  echo 'Start run';
   IMAGE_NAME=$DOCKER_REGISTRY/$GITHUB_REPOSITORY/$APP_NAME:v$VERSION_NUMBER
-
-  echo "$IMAGE_NAME"
-
-  exit 1
+  CONTAINER_NAME=$APP_NAME"_"$DCP_SERVICE_NAME
 
   docker-compose --project-name $APP_NAME build --build-arg build_number_ci=v$VERSION_NUMBER $DCP_SERVICE_NAME
 
@@ -18,13 +16,16 @@ function go() {
       docker-compose --project-name $APP_NAME up waithosts
   fi
 
-  if docker-compose --project-name $APP_NAME run $DCP_SERVICE_NAME npm test; then
-    echo 'Test Success';
-  else
-    exit 1;
+  if [ -n "$RUN_JS_TESTS" ]
+    then
+      if docker-compose --project-name $APP_NAME run $DCP_SERVICE_NAME npm test; then
+        echo 'Test Success';
+      else
+        exit 1;
+      fi
   fi
 
-  docker tag $APP_NAME_$DCP_SERVICE_NAME $IMAGE_NAME
+  docker tag $CONTAINER_NAME $IMAGE_NAME
   docker login https://$DOCKER_REGISTRY --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
   docker push $IMAGE_NAME
 }
@@ -119,7 +120,7 @@ case "$FUNCTION" in
         echo "Docker registry endpoint will be set to default: index.docker.io/v1/"
         export DCP_SERVICE_NAME="index.docker.io/v1/"
     fi
-    go
+    run
     ;;
 
   *)
