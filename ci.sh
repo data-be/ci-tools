@@ -25,9 +25,53 @@ function run() {
       fi
   fi
 
-  docker tag $CONTAINER_NAME $IMAGE_NAME
-  docker login https://$DOCKER_REGISTRY --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-  docker push $IMAGE_NAME
+  if [ -n "$SONAQUBE" ]
+    then
+      echo 'We get full git history for SonarQube'
+      git fetch --prune --unshallow
+
+      BRANCH_NAME=""
+
+      if [ -n "$GITHUB_HEAD_REF" ]
+        then
+          BRANCH_NAME=$GITHUB_HEAD_REF
+        else
+          BRANCH_NAME=${GITHUB_REF##*/}
+      fi
+
+      SONAR_OPTS="-Dsonar.projectKey=${GITHUB_REPOSITORY_OWNER}_${APP_NAME} -Dsonar.sources=src -Dsonar.scm.provider=git -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info"
+
+      if [ -n "$GITHUB_BASE_REF" ]
+        then
+          SONAR_OPTS="${SONAR_OPTS} -Dsonar.pullrequest.branch=$GITHUB_HEAD_REF -Dsonar.pullrequest.key=$GITHUB_PR_NUMBER -Dsonar.pullrequest.base=$GITHUB_BASE_REF -Dsonar.pullrequest.github.repository=$GITHUB_REPOSITORY"
+        else
+          SONAR_OPTS="${SONAR_OPTS} -Dsonar.branch.name=$BRANCH_NAME"
+      fi
+
+      if [ "$BRANCH_NAME" = "master" ] || [ "$BRANCH_NAME" = "main" ]
+        then
+          SONAR_OPTS="${SONAR_OPTS} -Dsonar.projectVersion=v${VERSION_NUMBER}"
+      fi
+
+      echo "${SONAR_OPTS}"
+      echo 'Run SonarQube analyzer'
+      docker run \
+        --rm \
+        -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
+        -e SONAR_TOKEN="${SONAR_TOKEN}" \
+        -e SONAR_SCANNER_OPTS="${SONAR_OPTS}" \
+        -v "${GITHUB_WORKSPACE}:/usr/src" \
+        sonarsource/sonar-scanner-cli
+  fi
+
+  if [ -z "$BYPASS_PUSH" ]
+    then
+      docker tag $CONTAINER_NAME $IMAGE_NAME
+      docker login https://$DOCKER_REGISTRY --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+      docker push $IMAGE_NAME
+    else
+      echo 'We bypass the docker image push'
+  fi
 }
 
 FUNCTION=$1
@@ -50,6 +94,16 @@ while test $# -gt 0; do
     --wait-databases*)
       echo "Script will wait for db to start"
       export WAIT_DATABASES=`echo $2 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
+    --sonarqube*)
+      echo "We will run sonarqube"
+      export SONAQUBE=`echo $2 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
+    --bypass-push*)
+      echo "We will bypass docker push"
+      export BYPASS_PUSH=`echo $2 | sed -e 's/^[^=]*=//g'`
       shift
       ;;
     --app-name*)
