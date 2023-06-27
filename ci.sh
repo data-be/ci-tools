@@ -5,6 +5,12 @@ function run() {
   IMAGE_NAME=$DOCKER_REGISTRY/$GITHUB_REPOSITORY/$APP_NAME:v$VERSION_NUMBER
   CONTAINER_NAME=$APP_NAME"_"$DCP_SERVICE_NAME
 
+  if [ -n "$NEED_BASE_IMAGE" ]
+    then
+      echo 'We need to login to get the base image';
+      docker login https://$DOCKER_REGISTRY --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+  fi
+
   docker-compose --project-name $APP_NAME build --build-arg build_number_ci=v$VERSION_NUMBER $DCP_SERVICE_NAME
 
   if [ -n "$WAIT_DATABASES" ]
@@ -89,7 +95,13 @@ while test $# -gt 0; do
       echo "options:"
       echo "-h, --help                  show brief help"
       echo "--wait-databases=dbs        specify docker db links to wait using waithosts"
+      echo "--need-base-image           specify if we need to login to get the base image"
       exit 0
+      ;;
+    --need-base-image*)
+      echo "Script will login to get the base image"
+      export NEED_BASE_IMAGE=`echo $2 | sed -e 's/^[^=]*=//g'`
+      shift
       ;;
     --wait-databases*)
       echo "Script will wait for db to start"
