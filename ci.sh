@@ -108,6 +108,11 @@ while test $# -gt 0; do
       export WAIT_DATABASES=`echo $2 | sed -e 's/^[^=]*=//g'`
       shift
       ;;
+    --run-js-tests*)
+      echo "Script will run JS tests"
+      export RUN_JS_TESTS=`echo $2 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
     --sonarqube*)
       echo "We will run sonarqube"
       export SONAQUBE=`echo $2 | sed -e 's/^[^=]*=//g'`
@@ -185,6 +190,11 @@ case "$FUNCTION" in
       then
         echo "Docker registry endpoint will be set to default: index.docker.io/v1/"
         export DCP_SERVICE_NAME="index.docker.io/v1/"
+    fi
+
+    if [ -z "$RUN_JS_TESTS" ]
+      then
+        echo "!!!!!!! We will not run JS tests !!!!!!!"
     fi
     run
     ;;
